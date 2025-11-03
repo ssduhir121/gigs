@@ -36,6 +36,7 @@ app.use(express.json());
 const allowedOrigins = [
   "http://localhost:5173",
   "https://gigs-eight.vercel.app",
+  "https://gigs-l5uh.onrender.com",
   "*"
 ];
 
