@@ -89,6 +89,7 @@ exports.createGig = async (req, res, next) => {
 // @desc    Generate unique share URL for a gig
 // @route   POST /api/gigs/:id/generate-share-url
 // @access  Private
+// In your gigs controller
 exports.generateShareUrl = async (req, res, next) => {
   try {
     const gig = await Gig.findById(req.params.id);
@@ -131,8 +132,11 @@ exports.generateShareUrl = async (req, res, next) => {
       });
     }
 
-    // Generate the shareable URL
-    const shareUrl = `${process.env.FRONTEND_URL}/track-share/${share.trackingToken}`;
+    // Generate the frontend shareable URL - FIX THIS PART
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const shareUrl = `${frontendUrl}/track-share/${share.trackingToken}`;
+
+    console.log('Generated share URL:', shareUrl); // Debug log
 
     res.status(200).json({
       success: true,
@@ -145,6 +149,7 @@ exports.generateShareUrl = async (req, res, next) => {
       message: 'Share URL generated successfully'
     });
   } catch (error) {
+    console.error('Error generating share URL:', error);
     next(error);
   }
 };
@@ -152,12 +157,169 @@ exports.generateShareUrl = async (req, res, next) => {
 // @desc    Track share click and process payment
 // @route   GET /api/track-share/:trackingToken
 // @access  Public
+// exports.trackShareClick = async (req, res, next) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { trackingToken } = req.params;
+
+//     // Find the share record
+//     const share = await Share.findOne({ trackingToken })
+//       .populate('gig')
+//       .populate('user')
+//       .session(session);
+
+//     if (!share) {
+//       await session.abortTransaction();
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Invalid share link'
+//       });
+//     }
+
+//     const gig = share.gig;
+
+//     if (!gig.isActive) {
+//       await session.abortTransaction();
+//       return res.redirect(`${process.env.FRONTEND_URL}/gig-completed`);
+//     }
+
+//     // Check if this click is from a unique visitor
+//     const visitorId = req.ip + req.get('User-Agent');
+//     const visitorHash = crypto.createHash('md5').update(visitorId).digest('hex');
+
+//     const isUniqueClick = !share.uniqueVisitors.includes(visitorHash);
+
+//     // Update share stats
+//     share.totalClicks += 1;
+    
+//     if (isUniqueClick) {
+//       share.uniqueClicks += 1;
+//       share.uniqueVisitors.push(visitorHash);
+//     }
+
+//     await share.save({ session });
+
+//     // Only process payment for unique clicks that haven't been paid yet
+//     if (isUniqueClick && !share.isPaid && gig.sharesCompleted < gig.sharesRequired) {
+//       // Calculate amount per share
+//       const amountPerShare = gig.budget / gig.sharesRequired;
+
+//       // Calculate platform fee and user earnings
+//       const { userEarning, platformFee } = calculateEarnings(amountPerShare);
+
+//       // Update share with payment info
+//       share.amountEarned = userEarning;
+//       share.platformFee = platformFee;
+//       share.totalAmount = amountPerShare;
+//       share.isPaid = true;
+
+//       // Get current user with session to ensure we have latest balance
+//       const currentUser = await User.findById(share.user._id).session(session);
+//       const newUserBalance = currentUser.walletBalance + userEarning;
+
+//       // Update user's wallet (sharer)
+//       await User.findByIdAndUpdate(
+//         share.user._id,
+//         { $inc: { walletBalance: userEarning } },
+//         { session }
+//       );
+
+//       // Create transaction record for sharer
+//       await Transaction.create([{
+//         user: share.user._id,
+//         gig: gig._id,
+//         share: share._id,
+//         type: 'credit',
+//         amount: userEarning,
+//         description: `Earnings from sharing gig: ${gig.title}`,
+//         balanceAfter: newUserBalance,
+//         metadata: {
+//           platformFee: platformFee,
+//           userEarning: userEarning,
+//           totalAmount: amountPerShare,
+//           uniqueClick: true
+//         }
+//       }], { session });
+
+//       // Update admin wallet (platform fee)
+//       const adminUser = await User.findOne({ role: 'admin' }).session(session);
+//       if (adminUser) {
+//         const newAdminBalance = adminUser.walletBalance + platformFee;
+        
+//         await User.findByIdAndUpdate(
+//           adminUser._id,
+//           { $inc: { walletBalance: platformFee } },
+//           { session }
+//         );
+
+//         // Create transaction record for admin
+//         await Transaction.create([{
+//           user: adminUser._id,
+//           gig: gig._id,
+//           share: share._id,
+//           type: 'credit',
+//           amount: platformFee,
+//           description: `Platform fee from gig: ${gig.title}`,
+//           balanceAfter: newAdminBalance,
+//           metadata: {
+//             platformFee: platformFee,
+//             userEarning: userEarning,
+//             totalAmount: amountPerShare
+//           }
+//         }], { session });
+//       }
+
+//       // Update gig stats
+//       gig.sharesCompleted += 1;
+//       gig.totalClicks += 1;
+
+//       // Check if gig is completed
+//       if (gig.sharesCompleted >= gig.sharesRequired) {
+//         gig.isActive = false;
+//       }
+
+//       await gig.save({ session });
+//     }
+
+//     await share.save({ session });
+//     await session.commitTransaction();
+
+//     // Redirect to the actual gig link
+//     res.redirect(gig.link);
+
+//   } catch (error) {
+//     await session.abortTransaction();
+//     console.error('Track share error:', error);
+    
+//     // Even if there's an error, still redirect to the gig link
+//     try {
+//       const share = await Share.findOne({ trackingToken: req.params.trackingToken }).populate('gig');
+//       if (share && share.gig) {
+//         return res.redirect(share.gig.link);
+//       }
+//     } catch (fallbackError) {
+//       // If everything fails, redirect to home page
+//       return res.redirect(process.env.FRONTEND_URL);
+//     }
+    
+//     res.redirect(process.env.FRONTEND_URL);
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
 exports.trackShareClick = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { trackingToken } = req.params;
+
+    console.log('🔗 Tracking share with token:', trackingToken);
+    console.log('🌐 Request from IP:', req.ip);
+    console.log('🖥️ User Agent:', req.get('User-Agent'));
 
     // Find the share record
     const share = await Share.findOne({ trackingToken })
@@ -167,16 +329,17 @@ exports.trackShareClick = async (req, res, next) => {
 
     if (!share) {
       await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        message: 'Invalid share link'
-      });
+      console.log('❌ Share not found for token:', trackingToken);
+      // Redirect to frontend with error instead of JSON
+      return res.redirect(`${process.env.FRONTEND_URL}/error?message=Invalid share link`);
     }
 
     const gig = share.gig;
+    console.log('🎯 Found gig:', gig.title);
 
     if (!gig.isActive) {
       await session.abortTransaction();
+      console.log('⏹️ Gig is not active:', gig.title);
       return res.redirect(`${process.env.FRONTEND_URL}/gig-completed`);
     }
 
@@ -185,6 +348,10 @@ exports.trackShareClick = async (req, res, next) => {
     const visitorHash = crypto.createHash('md5').update(visitorId).digest('hex');
 
     const isUniqueClick = !share.uniqueVisitors.includes(visitorHash);
+
+    console.log('👤 Visitor hash:', visitorHash);
+    console.log('🆕 Unique click:', isUniqueClick);
+    console.log('📊 Previous unique visitors:', share.uniqueVisitors.length);
 
     // Update share stats
     share.totalClicks += 1;
@@ -198,11 +365,17 @@ exports.trackShareClick = async (req, res, next) => {
 
     // Only process payment for unique clicks that haven't been paid yet
     if (isUniqueClick && !share.isPaid && gig.sharesCompleted < gig.sharesRequired) {
+      console.log('💰 Processing payment for unique click');
+      
       // Calculate amount per share
       const amountPerShare = gig.budget / gig.sharesRequired;
 
       // Calculate platform fee and user earnings
       const { userEarning, platformFee } = calculateEarnings(amountPerShare);
+
+      console.log('💵 Amount per share:', amountPerShare);
+      console.log('👤 User earning:', userEarning);
+      console.log('🏢 Platform fee:', platformFee);
 
       // Update share with payment info
       share.amountEarned = userEarning;
@@ -213,6 +386,10 @@ exports.trackShareClick = async (req, res, next) => {
       // Get current user with session to ensure we have latest balance
       const currentUser = await User.findById(share.user._id).session(session);
       const newUserBalance = currentUser.walletBalance + userEarning;
+
+      console.log('👤 Sharer:', share.user.name);
+      console.log('💰 Old balance:', currentUser.walletBalance);
+      console.log('💰 New balance:', newUserBalance);
 
       // Update user's wallet (sharer)
       await User.findByIdAndUpdate(
@@ -270,36 +447,48 @@ exports.trackShareClick = async (req, res, next) => {
       gig.sharesCompleted += 1;
       gig.totalClicks += 1;
 
+      console.log('📈 Gig progress:', gig.sharesCompleted + '/' + gig.sharesRequired);
+
       // Check if gig is completed
       if (gig.sharesCompleted >= gig.sharesRequired) {
         gig.isActive = false;
+        console.log('🎉 Gig completed!');
       }
 
       await gig.save({ session });
+    } else {
+      console.log('ℹ️ No payment processed - reasons:');
+      console.log('  - Unique click:', isUniqueClick);
+      console.log('  - Already paid:', share.isPaid);
+      console.log('  - Gig completed:', gig.sharesCompleted >= gig.sharesRequired);
     }
 
     await share.save({ session });
     await session.commitTransaction();
 
+    console.log('✅ Share tracked successfully');
+    console.log('🔗 Redirecting to:', gig.link);
+
     // Redirect to the actual gig link
-    res.redirect(gig.link);
+    return res.redirect(gig.link);
 
   } catch (error) {
     await session.abortTransaction();
-    console.error('Track share error:', error);
+    console.error('❌ Track share error:', error);
     
     // Even if there's an error, still redirect to the gig link
     try {
       const share = await Share.findOne({ trackingToken: req.params.trackingToken }).populate('gig');
       if (share && share.gig) {
+        console.log('🔄 Fallback redirect to gig link');
         return res.redirect(share.gig.link);
       }
     } catch (fallbackError) {
-      // If everything fails, redirect to home page
-      return res.redirect(process.env.FRONTEND_URL);
+      console.error('❌ Fallback error:', fallbackError);
     }
     
-    res.redirect(process.env.FRONTEND_URL);
+    console.log('🏠 Final fallback to homepage');
+    return res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
   } finally {
     session.endSession();
   }
@@ -366,3 +555,74 @@ function calculateEarnings(amountPerShare) {
     platformFee: parseFloat(platformFee.toFixed(2))
   };
 }
+
+
+// In your gigs controller
+// In your gigs controller
+exports.createGigWithWallet = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { title, description, link, budget, sharesRequired } = req.body;
+    
+    // Check if user has sufficient balance
+    const user = await User.findById(req.user.id).session(session);
+    
+    if (user.walletBalance < budget) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient wallet balance'
+      });
+    }
+
+    // Create gig
+    const gig = await Gig.create([{
+      title,
+      description,
+      link,
+      budget,
+      sharesRequired,
+      user: req.user.id,
+      isActive: true, // Activate immediately since payment is from wallet
+      paymentMethod: 'wallet'
+    }], { session });
+
+    // Deduct from user's wallet
+    const newBalance = user.walletBalance - budget;
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { walletBalance: newBalance },
+      { session }
+    );
+
+    // Create transaction record - FIX: Include gig field
+    await Transaction.create([{
+      user: req.user.id,
+      gig: gig[0]._id, // Add this line - reference the created gig
+      type: 'debit',
+      amount: budget,
+      description: `Payment for gig: ${title}`,
+      balanceAfter: newBalance,
+      metadata: {
+        gigId: gig[0]._id,
+        paymentMethod: 'wallet'
+      }
+    }], { session });
+
+    await session.commitTransaction();
+
+    res.status(201).json({
+      success: true,
+      data: gig[0],
+      newBalance: newBalance,
+      message: 'Gig created successfully using wallet balance'
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
+};

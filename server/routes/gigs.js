@@ -9,15 +9,21 @@ const {
   generateShareUrl,
   trackShareClick,
   getMyGigs,
-  getMyShares
+  getMyShares,
+  createGigWithWallet
 } = require('../controllers/gigs');
 
 router.get('/', getGigs);
 router.get('/my-gigs', protect, getMyGigs);
 router.get('/my-shares', protect, getMyShares);
+
+// TRACK-SHARE MUST COME BEFORE :id
+router.get('/track-share/:trackingToken', trackShareClick);
+
+// This comes AFTER specific routes
 router.get('/:id', getGig);
 router.post('/', protect, createGig);
+router.post('/create-with-wallet', protect, createGigWithWallet);
 router.post('/:id/generate-share-url', protect, generateShareUrl);
-router.get('/track-share/:trackingToken', trackShareClick);
 
 module.exports = router;

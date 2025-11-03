@@ -35,7 +35,8 @@ app.use(express.json());
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://gigs-eight.vercel.app"
+  "https://gigs-eight.vercel.app",
+  "*"
 ];
 
 app.use(cors({

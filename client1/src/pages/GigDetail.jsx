@@ -63,48 +63,156 @@ const GigDetail = () => {
     };
   };
 
-  const handleShare = async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to share this gig');
-      navigate('/login');
-      return;
-    }
+const handleShare = async () => {
+  if (!isAuthenticated) {
+    toast.error('Please login to share this gig');
+    navigate('/login');
+    return;
+  }
 
-    setSharing(true);
-    const shareToast = toast.loading('Generating your unique share link...');
+  setSharing(true);
+  const shareToast = toast.loading('Generating your unique share link...');
 
-    try {
-      // Generate unique share URL
-      const shareRes = await axios.post(`/api/gigs/${id}/generate-share-url`);
-      
-      const { shareUrl, gigTitle, gigLink } = shareRes.data.data;
-      
-      // Copy share URL to clipboard
-      await navigator.clipboard.writeText(shareUrl);
-      
-      toast.success('Unique share link copied to clipboard! Share this URL with others to earn money.', {
-        id: shareToast,
-        duration: 6000
-      });
+  try {
+    // Step 1: Generate unique share URL
+    const shareRes = await axios.post(`/api/gigs/${id}/generate-share-url`);
+    
+    console.log('Share response:', shareRes.data); // Debug log
+    
+    const { shareUrl, gigTitle, gigLink, trackingToken } = shareRes.data.data;
+    
+    // Always construct the URL manually to ensure it's correct
+    const frontendShareUrl = `${window.location.origin}/track-share/${trackingToken}`;
+    await navigator.clipboard.writeText(frontendShareUrl);
+    
+    toast.success('Share link copied to clipboard! Share this URL with others to earn money.', {
+      id: shareToast,
+      duration: 6000
+    });
 
-      // Show modal with share options
-      setShareData({
-        url: shareUrl,
-        title: gigTitle,
-        link: gigLink
-      });
-      setShowShareModal(true);
+    setShareData({
+      url: frontendShareUrl,
+      title: gigTitle,
+      link: gigLink,
+      trackingToken: trackingToken
+    });
+    setShowShareModal(true);
+    fetchGig(); // Refresh gig data
+    
+  } catch (error) {
+    console.error('Error generating share link:', error);
+    toast.error(error.response?.data?.message || 'Error generating share link', {
+      id: shareToast
+    });
+  } finally {
+    setSharing(false);
+  }
+};
+//   const handleShare = async () => {
+//   if (!isAuthenticated) {
+//     toast.error('Please login to share this gig');
+//     navigate('/login');
+//     return;
+//   }
 
-      fetchGig(); // Refresh gig data
+//   setSharing(true);
+//   const shareToast = toast.loading('Generating your unique share link...');
+
+//   try {
+//     // Step 1: Generate unique share URL
+//     const shareRes = await axios.post(`/api/gigs/${id}/generate-share-url`);
+    
+//     console.log('Share response:', shareRes.data); // Debug log
+    
+//     const { shareUrl, gigTitle, gigLink, trackingToken } = shareRes.data.data;
+    
+//     // Validate the shareUrl
+//     if (!shareUrl || shareUrl === 'undefined/track-share/' + trackingToken) {
+//       // If backend returned invalid URL, construct it manually
+//       const frontendShareUrl = `${window.location.origin}/track-share/${trackingToken}`;
+//       await navigator.clipboard.writeText(frontendShareUrl);
+//       toast.success('Share link copied to clipboard!', {
+//         id: shareToast,
+//         duration: 6000
+//       });
       
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Error generating share link', {
-        id: shareToast
-      });
-    } finally {
-      setSharing(false);
-    }
-  };
+//       setShareData({
+//         url: frontendShareUrl,
+//         title: gigTitle,
+//         link: gigLink,
+//         trackingToken: trackingToken
+//       });
+//     } else {
+//       // Use the URL from backend
+//       await navigator.clipboard.writeText(shareUrl);
+//       toast.success('Share link copied to clipboard!', {
+//         id: shareToast,
+//         duration: 6000
+//       });
+      
+//       setShareData({
+//         url: shareUrl,
+//         title: gigTitle,
+//         link: gigLink,
+//         trackingToken: trackingToken
+//       });
+//     }
+
+//     setShowShareModal(true);
+//     fetchGig(); // Refresh gig data
+    
+//   } catch (error) {
+//     console.error('Error generating share link:', error);
+//     toast.error(error.response?.data?.message || 'Error generating share link', {
+//       id: shareToast
+//     });
+//   } finally {
+//     setSharing(false);
+//   }
+// };
+
+  // const handleShare = async () => {
+  //   if (!isAuthenticated) {
+  //     toast.error('Please login to share this gig');
+  //     navigate('/login');
+  //     return;
+  //   }
+
+  //   setSharing(true);
+  //   const shareToast = toast.loading('Generating your unique share link...');
+
+  //   try {
+  //     // Generate unique share URL
+  //     const shareRes = await axios.post(`/api/gigs/${id}/generate-share-url`);
+      
+  //     const { shareUrl, gigTitle, gigLink } = shareRes.data.data;
+      
+  //     // Copy share URL to clipboard
+  //     await navigator.clipboard.writeText(shareUrl);
+      
+  //     toast.success('Unique share link copied to clipboard! Share this URL with others to earn money.', {
+  //       id: shareToast,
+  //       duration: 6000
+  //     });
+
+  //     // Show modal with share options
+  //     setShareData({
+  //       url: shareUrl,
+  //       title: gigTitle,
+  //       link: gigLink
+  //     });
+  //     setShowShareModal(true);
+
+  //     fetchGig(); // Refresh gig data
+      
+  //   } catch (error) {
+  //     toast.error(error.response?.data?.message || 'Error generating share link', {
+  //       id: shareToast
+  //     });
+  //   } finally {
+  //     setSharing(false);
+  //   }
+  // };
 
   const copyToClipboard = async (text) => {
     try {
