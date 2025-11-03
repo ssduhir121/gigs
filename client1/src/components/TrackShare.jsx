@@ -1,4 +1,4 @@
-// components/TrackShare.jsx
+// components/TrackShare.jsx - Updated version
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -8,38 +8,56 @@ const TrackShare = () => {
   const { trackingToken } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [gigLink, setGigLink] = useState('');
 
   useEffect(() => {
     const trackAndRedirect = async () => {
       try {
         setLoading(true);
         
-        // First, track the share via API
-        await axios.get(`/api/gigs/track-share/${trackingToken}`);
+        // Step 1: Track the share via API
+        const trackResponse = await axios.get(`/api/gigs/track-share/${trackingToken}`);
         
-        // If we get here, tracking was successful but we're still on the same page
-        // because the backend redirect doesn't affect our frontend
-        toast.success('Share tracked successfully! Earnings added to your wallet.');
+        const { gigLink, earnedMoney, earningsAmount, message } = trackResponse.data.data;
         
-        // Get the gig details to find the actual link
-        try {
-          const shareRes = await axios.get(`/api/gigs/shares/${trackingToken}`);
-          if (shareRes.data.data && shareRes.data.data.gig) {
-            // Open the actual gig link in new tab
-            window.open(shareRes.data.data.gig.link, '_blank');
-          }
-        } catch (shareError) {
-          console.log('Could not get gig link, redirecting to gigs');
+        // Set the gig link for potential fallback use
+        setGigLink(gigLink);
+        
+        // Show success message
+        if (earnedMoney) {
+          toast.success(`🎉 ${message}`);
+        } else {
+          toast.success('Share tracked successfully!');
         }
         
-        // Redirect to gigs page after a delay
+        // Step 2: Open the gig link in a new tab
+        if (gigLink) {
+          window.open(gigLink, '_blank', 'noopener,noreferrer');
+        }
+        
+        // Step 3: Redirect to gigs page after a delay
         setTimeout(() => {
           navigate('/gigs');
         }, 2000);
         
       } catch (error) {
         console.error('Error tracking share:', error);
-        toast.error('Failed to track share');
+        
+        // Fallback: Try to get share details to find the gig link
+        try {
+          const shareRes = await axios.get(`/api/gigs/shares/${trackingToken}`);
+          if (shareRes.data.data && shareRes.data.data.gig) {
+            const link = shareRes.data.data.gig.link;
+            setGigLink(link);
+            window.open(link, '_blank', 'noopener,noreferrer');
+            toast.success('Redirecting to gig...');
+          }
+        } catch (shareError) {
+          console.log('Could not get gig link from share details');
+          toast.error('Failed to track share and get gig link');
+        }
+        
+        // Redirect to gigs page after a delay
         setTimeout(() => {
           navigate('/gigs');
         }, 2000);
@@ -56,7 +74,7 @@ const TrackShare = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Tracking your share...</p>
+          <p className="text-gray-600">Tracking your share and redirecting...</p>
         </div>
       </div>
     );
@@ -66,9 +84,9 @@ const TrackShare = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Share Tracked Successfully!</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Redirecting...</h2>
         <p className="text-gray-600 mb-4">
-          Earnings have been added to your wallet. Redirecting to gigs...
+          You should be redirected to the gig shortly. If not, <a href={gigLink} className="text-primary-600 hover:underline">click here</a>.
         </p>
       </div>
     </div>

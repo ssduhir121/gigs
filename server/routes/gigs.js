@@ -10,13 +10,14 @@ const {
   trackShareClick,
   getMyGigs,
   getMyShares,
-  createGigWithWallet
+  createGigWithWallet,
+  getShareByToken
 } = require('../controllers/gigs');
 
 router.get('/', getGigs);
 router.get('/my-gigs', protect, getMyGigs);
 router.get('/my-shares', protect, getMyShares);
-
+router.get('/shares/:trackingToken', protect, getShareByToken);
 // TRACK-SHARE MUST COME BEFORE :id
 router.get('/track-share/:trackingToken', trackShareClick);
 

@@ -330,8 +330,11 @@ exports.trackShareClick = async (req, res, next) => {
     if (!share) {
       await session.abortTransaction();
       console.log('❌ Share not found for token:', trackingToken);
-      // Redirect to frontend with error instead of JSON
-      return res.redirect(`${process.env.FRONTEND_URL}/error?message=Invalid share link`);
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid share link',
+        gigLink: null
+      });
     }
 
     const gig = share.gig;
@@ -340,7 +343,11 @@ exports.trackShareClick = async (req, res, next) => {
     if (!gig.isActive) {
       await session.abortTransaction();
       console.log('⏹️ Gig is not active:', gig.title);
-      return res.redirect(`${process.env.FRONTEND_URL}/gig-completed`);
+      return res.status(400).json({
+        success: false,
+        message: 'This gig is no longer active',
+        gigLink: gig.link
+      });
     }
 
     // Check if this click is from a unique visitor
@@ -362,6 +369,9 @@ exports.trackShareClick = async (req, res, next) => {
     }
 
     await share.save({ session });
+
+    let earnedMoney = false;
+    let earningsAmount = 0;
 
     // Only process payment for unique clicks that haven't been paid yet
     if (isUniqueClick && !share.isPaid && gig.sharesCompleted < gig.sharesRequired) {
@@ -456,6 +466,9 @@ exports.trackShareClick = async (req, res, next) => {
       }
 
       await gig.save({ session });
+      
+      earnedMoney = true;
+      earningsAmount = userEarning;
     } else {
       console.log('ℹ️ No payment processed - reasons:');
       console.log('  - Unique click:', isUniqueClick);
@@ -467,28 +480,33 @@ exports.trackShareClick = async (req, res, next) => {
     await session.commitTransaction();
 
     console.log('✅ Share tracked successfully');
-    console.log('🔗 Redirecting to:', gig.link);
+    console.log('🔗 Gig link:', gig.link);
 
-    // Redirect to the actual gig link
-    return res.redirect(gig.link);
+    // Return JSON response instead of redirecting
+    res.status(200).json({
+      success: true,
+      data: {
+        gigLink: gig.link,
+        gigTitle: gig.title,
+        tracked: true,
+        earnedMoney: earnedMoney,
+        earningsAmount: earningsAmount,
+        isUniqueClick: isUniqueClick,
+        gigActive: gig.isActive
+      },
+      message: earnedMoney ? `Earned $${earningsAmount.toFixed(2)} from this share!` : 'Share tracked successfully'
+    });
 
   } catch (error) {
     await session.abortTransaction();
     console.error('❌ Track share error:', error);
     
-    // Even if there's an error, still redirect to the gig link
-    try {
-      const share = await Share.findOne({ trackingToken: req.params.trackingToken }).populate('gig');
-      if (share && share.gig) {
-        console.log('🔄 Fallback redirect to gig link');
-        return res.redirect(share.gig.link);
-      }
-    } catch (fallbackError) {
-      console.error('❌ Fallback error:', fallbackError);
-    }
-    
-    console.log('🏠 Final fallback to homepage');
-    return res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
+    // Return error in JSON format
+    res.status(500).json({
+      success: false,
+      message: 'Error tracking share',
+      gigLink: null
+    });
   } finally {
     session.endSession();
   }
@@ -624,5 +642,52 @@ exports.createGigWithWallet = async (req, res, next) => {
     next(error);
   } finally {
     session.endSession();
+  }
+};
+
+
+
+// @desc    Get share details by tracking token
+// @route   GET /api/gigs/shares/:trackingToken
+// @access  Private
+exports.getShareByToken = async (req, res, next) => {
+  try {
+    const share = await Share.findOne({ trackingToken: req.params.trackingToken })
+      .populate('gig', 'title link budget sharesRequired sharesCompleted isActive')
+      .populate('user', 'name email');
+    
+    if (!share) {
+      return res.status(404).json({
+        success: false,
+        message: 'Share not found'
+      });
+    }
+
+    // Check if the current user is the owner of this share
+    if (share.user._id.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only view your own shares.'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        share: {
+          _id: share._id,
+          trackingToken: share.trackingToken,
+          totalClicks: share.totalClicks,
+          uniqueClicks: share.uniqueClicks,
+          amountEarned: share.amountEarned,
+          isPaid: share.isPaid,
+          createdAt: share.createdAt
+        },
+        gig: share.gig
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching share details:', error);
+    next(error);
   }
 };
