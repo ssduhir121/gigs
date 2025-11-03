@@ -35,6 +35,7 @@ app.use(express.json());
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:3000",
   "https://gigs-eight.vercel.app",
   "https://gigs-l5uh.onrender.com",
   "*"
