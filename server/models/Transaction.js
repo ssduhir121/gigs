@@ -1,4 +1,3 @@
-// models/Transaction.js
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
@@ -9,8 +8,7 @@ const transactionSchema = new mongoose.Schema({
   },
   gig: {
     type: mongoose.Schema.ObjectId,
-    ref: 'Gig',
-    required: true
+    ref: 'Gig'
   },
   share: {
     type: mongoose.Schema.ObjectId,
@@ -31,8 +29,23 @@ const transactionSchema = new mongoose.Schema({
     required: true
   },
   balanceAfter: {
-    type: Number,
-    required: true
+    type: Number
+  },
+  reference: {
+    type: String // e.g., PayPal orderId
+  },
+  paymentProvider: {
+    type: String,
+    enum: ['PayPal', 'Stripe', 'Wallet', 'Manual'],
+    default: 'PayPal'
+  },
+  payerEmail: {
+    type: String
+  },
+  status: {
+    type: String,
+    enum: ['COMPLETED', 'PENDING', 'FAILED'],
+    default: 'PENDING'
   },
   metadata: {
     platformFee: Number,

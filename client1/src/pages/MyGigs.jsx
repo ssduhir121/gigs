@@ -456,7 +456,7 @@ const MyGigs = () => {
   if (loading) {
     return (
       <GradientBackground className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-white/80">Loading your gigs...</p>
@@ -469,7 +469,7 @@ const MyGigs = () => {
   if (error && gigs.length === 0) {
     return (
       <GradientBackground className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-16">
             <GlassCard className="p-12 max-w-2xl mx-auto">
               <div className="text-6xl mb-4">😕</div>
@@ -491,7 +491,7 @@ const MyGigs = () => {
 
   return (
     <GradientBackground className="py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
           <div className="mb-6 lg:mb-0">

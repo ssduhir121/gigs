@@ -1,30 +1,27 @@
-// routes/gigs.js
 const express = require('express');
 const router = express.Router();
+const gigsController = require('../controllers/gigs');
+const paypalController = require('../controllers/paypalController');
 const { protect } = require('../middleware/auth');
-const {
-  getGigs,
-  getGig,
-  createGig,
-  generateShareUrl,
-  trackShareClick,
-  getMyGigs,
-  getMyShares,
-  createGigWithWallet,
-  getShareByToken
-} = require('../controllers/gigs');
 
-router.get('/', getGigs);
-router.get('/my-gigs', protect, getMyGigs);
-router.get('/my-shares', protect, getMyShares);
-router.get('/shares/:trackingToken', protect, getShareByToken);
-// TRACK-SHARE MUST COME BEFORE :id
-router.get('/track-share/:trackingToken', trackShareClick);
+// PayPal routes - ADD PROTECT MIDDLEWARE
+router.post('/paypal/create-order', protect, paypalController.createPaypalOrder); // ✅ Add protect
+router.post('/paypal/capture', protect, paypalController.capturePaypalOrder); // ✅ Add protect
 
-// This comes AFTER specific routes
-router.get('/:id', getGig);
-router.post('/', protect, createGig);
-router.post('/create-with-wallet', protect, createGigWithWallet);
-router.post('/:id/generate-share-url', protect, generateShareUrl);
+// Public routes
+router.get('/', gigsController.getGigs);
+router.get('/track-share/:trackingToken', gigsController.trackShareClick);
+router.get('/media/:filename', gigsController.serveMedia); 
+// Protected routes - SPECIFIC ROUTES FIRST
+router.get('/my-gigs', protect, gigsController.getMyGigs);
+router.get('/my-shares', protect, gigsController.getMyShares);
+router.get('/shares/:trackingToken', protect, gigsController.getShareByToken);
+router.post('/create-with-wallet', protect, gigsController.createGigWithWallet);
+
+// ✅ FIXED: Move generate-share-url BEFORE the parameterized :id route
+router.post('/:id/generate-share-url', protect, gigsController.generateShareUrl);
+
+// Parameterized routes - THESE SHOULD BE LAST
+router.get('/:id', gigsController.getGig);
 
 module.exports = router;
