@@ -476,6 +476,8 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  console.log('Google Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  console.log('All env vars:', import.meta.env);
   const { email, password } = formData;
 
   const from = location.state?.from?.pathname || '/gigs';
