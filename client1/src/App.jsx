@@ -318,7 +318,7 @@ import CompanyRegister from './pages/CompanyRegister';
 import MyInvitations from './pages/MyInvitations';
 
 // ✅ ADD: Profile page
-import Profile from './pages/Profile';
+import Profile from './pages/profile.jsx';
 
 // Loading Component
 const LoadingSpinner = () => (
